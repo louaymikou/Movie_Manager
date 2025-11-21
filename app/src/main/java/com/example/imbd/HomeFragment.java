@@ -1,17 +1,18 @@
 package com.example.imbd;
 
-import android.content.Intent;
 import android.os.Bundle;
-
-import androidx.fragment.app.Fragment;
-import androidx.recyclerview.widget.GridLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
-
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ProgressBar;
 import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
@@ -20,44 +21,43 @@ import com.android.volley.toolbox.Volley;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
-import android.widget.ProgressBar;
 
 import java.util.ArrayList;
 
-public class Home extends Fragment implements MovieAdapter.MyClicks {
+public class HomeFragment extends Fragment implements MovieAdapter.MyClicks {
+
     RecyclerView recyclerMovies;
     MovieAdapter movieAdapter;
-    ArrayList<MovieModel> movieList = new ArrayList<>();
-    private ProgressBar loadingProgressBar;
+    ArrayList<Movie> movieList = new ArrayList<>();
+    ProgressBar loadingProgressBar;
 
-    public Home() {
+    public HomeFragment() {
         // Required empty public constructor
     }
-
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
-        // Inflate the layout for this fragment
         View v = inflater.inflate(R.layout.fragment_home, container, false);
+
         recyclerMovies = v.findViewById(R.id.recyclerMovies);
-        loadingProgressBar = v.findViewById(R.id.loadingProgressBar); // <-- Find the ProgressBar by its ID
+        loadingProgressBar = v.findViewById(R.id.loadingProgressBar);
 
-        // 3 columns
-        recyclerMovies.setLayoutManager(new GridLayoutManager(getContext(), 3));
+        // 2 columns for the grid looks better with the new card design
+        recyclerMovies.setLayoutManager(new GridLayoutManager(getContext(), 2));
 
-        movieAdapter = new MovieAdapter(this.movieList,this);
+        movieAdapter = new MovieAdapter(getContext(), movieList, this);
         recyclerMovies.setAdapter(movieAdapter);
 
         loadMovies();
-        Log.d("vvv", "onCreateView: "+movieList.size());
-
 
         return v;
     }
+
     private void loadMovies() {
         loadingProgressBar.setVisibility(View.VISIBLE);
-        String url = "https://api.themoviedb.org/3/movie/popular?api_key=3eb1ae63cae30f7f59288876da6c30c7&language=en-US&page=1";
+
+        String url = AppConfig.getPopularMoviesUrl(1);
 
         RequestQueue queue = Volley.newRequestQueue(getContext());
 
@@ -65,27 +65,24 @@ public class Home extends Fragment implements MovieAdapter.MyClicks {
                 response -> {
                     loadingProgressBar.setVisibility(View.GONE);
                     try {
-                        // TMDB uses "results", not "items"
                         JSONArray items = response.getJSONArray("results");
-                        Log.d("vvvcc", "onCreateView: "+items.length());
+                        movieList.clear(); // Clear old data if any
 
                         for (int i = 0; i < items.length(); i++) {
                             JSONObject obj = items.getJSONObject(i);
 
-                            String poster = obj.getString("poster_path");
-                            String fullPosterUrl = "https://image.tmdb.org/t/p/w500" + poster;
+                            String posterPath = obj.getString("poster_path");
+                            String fullPosterUrl = AppConfig.TMDB_IMAGE_BASE_URL + posterPath;
 
-                            MovieModel movie = new MovieModel(
+                            Movie movie = new Movie(
                                     obj.getString("id"),
                                     obj.getString("title"),
                                     fullPosterUrl,
                                     obj.getString("vote_average")
                             );
 
-                            this.movieList.add(movie);
-                            Log.d("vvvtt", "onCreateView: "+movieList.size());
+                            movieList.add(movie);
                         }
-
                         movieAdapter.notifyDataSetChanged();
 
                     } catch (Exception e) {
@@ -96,25 +93,24 @@ public class Home extends Fragment implements MovieAdapter.MyClicks {
                 error -> {
                     loadingProgressBar.setVisibility(View.GONE);
                     Log.e("API_ERROR", error.toString());
-                    Toast.makeText(getContext(), "API error", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(getContext(), "API Connection Error", Toast.LENGTH_SHORT).show();
                 });
 
         queue.add(request);
     }
 
     @Override
-    public void onClick(int position) {
-        MovieModel movie = movieList.get(position);
+    public void onMovieClick(Movie movie) {
+        // Send ID to Details Fragment
+        Bundle bundle = new Bundle();
+        bundle.putString("movieId", movie.getId());
 
-        // Intent vers page de détails
-        Bundle intent = new Bundle();
-        intent.putString("movieId", movie.getId());
-        intent.putString("movieTitle", movie.getTitle());
-        intent.putString("movieImage", movie.getImageUrl());
-        intent.putString("movieRating", movie.getRating());
+        getParentFragmentManager().setFragmentResult("requestKey", bundle);
 
-        getParentFragmentManager().setFragmentResult("movieId", intent);
-
+        getParentFragmentManager()
+                .beginTransaction()
+                .replace(R.id.fragment_container, new DetailMovieFragment())
+                .addToBackStack(null)
+                .commit();
     }
-
 }

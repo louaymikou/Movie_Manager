@@ -11,44 +11,54 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.resource.bitmap.RoundedCorners;
 
-import java.util.List;
+import java.util.ArrayList;
 
-public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.MovieViewHolder>{
-    Context context;
-    List<MovieModel> movieList;
+public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.MovieViewHolder> {
 
-    MyClicks myClicks;
+    private ArrayList<Movie> movieList;
+    private MyClicks listener;
+    private Context context;
+
+    // Interface for click events
     public interface MyClicks {
-        void onClick(int position);
+        void onMovieClick(Movie movie);
     }
 
-
-    public MovieAdapter(List<MovieModel> movieList, MyClicks myClicks) {
+    public MovieAdapter(Context context, ArrayList<Movie> movieList, MyClicks listener) {
+        this.context = context;
         this.movieList = movieList;
-        this.myClicks = myClicks;
+        this.listener = listener;
     }
 
     @NonNull
     @Override
     public MovieViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View v = LayoutInflater.from(context)
-                .inflate(R.layout.item_movie, parent, false);
-
-        return new MovieViewHolder(v, myClicks);
+        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_movie, parent, false);
+        return new MovieViewHolder(view);
     }
 
     @Override
     public void onBindViewHolder(@NonNull MovieViewHolder holder, int position) {
-        MovieModel movie = movieList.get(position);
-        holder.title.setText(movie.getTitle());
-        holder.rating.setText(movie.getRating());
+        Movie movie = movieList.get(position);
 
+        holder.textTitle.setText(movie.getTitle());
+        holder.textRating.setText(movie.getRating());
+
+        // Load image with Glide and round the corners slightly
         Glide.with(context)
                 .load(movie.getImageUrl())
-                .placeholder(R.drawable.placeholder)
-                .into(holder.poster);
+                .transform(new RoundedCorners(16)) // Matches your XML radius roughly
+                .placeholder(android.R.drawable.ic_menu_gallery)
+                .into(holder.imagePoster);
 
+        // Handle Clicks
+        holder.itemView.setOnClickListener(v -> {
+            if (listener != null) {
+                listener.onMovieClick(movie);
+            }
+        });
     }
 
     @Override
@@ -57,20 +67,14 @@ public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.MovieViewHol
     }
 
     public static class MovieViewHolder extends RecyclerView.ViewHolder {
+        TextView textTitle, textRating;
+        ImageView imagePoster;
 
-        ImageView poster;
-        TextView title, rating;
-
-        public MovieViewHolder(@NonNull View itemView, MyClicks myClicks) {
+        public MovieViewHolder(@NonNull View itemView) {
             super(itemView);
-
-            poster = itemView.findViewById(R.id.imagePoster);
-            title = itemView.findViewById(R.id.textTitle);
-            rating = itemView.findViewById(R.id.textRating);
-            itemView.setOnClickListener(v -> {
-                if (myClicks != null)
-                    myClicks.onClick(getAdapterPosition());
-            });
+            textTitle = itemView.findViewById(R.id.textTitle);
+            textRating = itemView.findViewById(R.id.textRating);
+            imagePoster = itemView.findViewById(R.id.imagePoster);
         }
     }
 }

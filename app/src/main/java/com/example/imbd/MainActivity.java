@@ -1,68 +1,61 @@
 package com.example.imbd;
 
+import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.os.Bundle;
-import android.util.Log;
-import android.view.View;
 import android.widget.Button;
-import android.widget.Toast;
 
-import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
-import androidx.recyclerview.widget.GridLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
-
-import com.android.volley.Request;
-import com.android.volley.RequestQueue;
-import com.android.volley.toolbox.JsonObjectRequest;
-import com.android.volley.toolbox.Volley;
-
-import org.json.JSONArray;
-import org.json.JSONObject;
-
-import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity {
 
-    Button Watch_list_btn, homeBtn;
+    Button btnWatchList, btnHome;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // Récupération des boutons
-        Watch_list_btn = findViewById(R.id.Watch_list_btn);
-        homeBtn = findViewById(R.id.homebtn);
+        btnWatchList = findViewById(R.id.Watch_list_btn);
+        btnHome = findViewById(R.id.homebtn);
 
-        // Chargement du fragment par défaut
-        replaceFrag(new Home());
+        // Load Home by default
+        replaceFrag(new HomeFragment());
+        updateButtonStyles(true); // true = Home is active
 
-        // Bouton settings
-        Watch_list_btn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                replaceFrag(new Wach_list());
-            }
+        // === Navigation Logic ===
+
+        btnHome.setOnClickListener(v -> {
+            replaceFrag(new HomeFragment());
+            updateButtonStyles(true);
         });
 
-        // Bouton home
-        homeBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                replaceFrag(new Home());
-            }
+        btnWatchList.setOnClickListener(v -> {
+            replaceFrag(new WachListFragmant());
+            updateButtonStyles(false);
         });
     }
 
-    void replaceFrag(Fragment f){
+    private void replaceFrag(Fragment f) {
         getSupportFragmentManager()
                 .beginTransaction()
                 .replace(R.id.fragment_container, f)
+                .addToBackStack(null) // Allows back button navigation
                 .commit();
     }
 
+    // Changes button colors: Active = Red, Inactive = Dark Gray
+    private void updateButtonStyles(boolean isHomeActive) {
+        int activeColor = Color.parseColor("#E50914"); // Netflix Red
+        int inactiveColor = Color.parseColor("#333333"); // Dark Gray
+
+        if (isHomeActive) {
+            btnHome.setBackgroundTintList(ColorStateList.valueOf(activeColor));
+            btnWatchList.setBackgroundTintList(ColorStateList.valueOf(inactiveColor));
+        } else {
+            btnHome.setBackgroundTintList(ColorStateList.valueOf(inactiveColor));
+            btnWatchList.setBackgroundTintList(ColorStateList.valueOf(activeColor));
+        }
+    }
 }

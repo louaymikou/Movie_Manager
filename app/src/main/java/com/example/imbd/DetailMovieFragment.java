@@ -11,7 +11,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentResultListener;
 
@@ -23,30 +22,25 @@ import com.android.volley.toolbox.Volley;
 import com.bumptech.glide.Glide;
 
 import org.json.JSONArray;
-
 import java.util.HashMap;
 import java.util.Map;
 
-public class MovieDetails extends Fragment {
-    public MovieDetails() {
-        // Required empty public constructor
-    }
+public class DetailMovieFragment extends Fragment {
+
     ImageView poster;
     Button btnAddToDB;
-    TextView movietitle, movierating, moviedescription;
-    TextView moviedate;
-    String title = "";
-    String genre = "";
-    String year = "";
-    String description = "";
-    String image_url = "";
+    TextView movietitle, movierating, moviedescription, moviedate;
 
+    String title = "", genre = "", year = "", description = "", image_url = "";
     String movieId;
+
+    public DetailMovieFragment() { }
+
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
-        // Inflate the layout for this fragment
-        View v = inflater.inflate(R.layout.fragment_movie_details, container, false);
+        View v = inflater.inflate(R.layout.fragment_detail_movie, container, false);
+
         moviedate = v.findViewById(R.id.detailsDate);
         poster = v.findViewById(R.id.detailsPoster);
         movietitle = v.findViewById(R.id.detailsTitle);
@@ -54,104 +48,80 @@ public class MovieDetails extends Fragment {
         moviedescription = v.findViewById(R.id.detailsDescription);
         btnAddToDB = v.findViewById(R.id.btnAddToDB);
 
-        getParentFragmentManager().setFragmentResultListener("movieId", this, new FragmentResultListener() {
-
-
-                    @Override
-                    public void onFragmentResult(@NonNull String requestKey, @NonNull Bundle bundle) {
-                        movieId = bundle.getString("movieId");
-                        moviedate.setText(bundle.getString("movieDate"));
-                    }
-                });
-
-            getMovieDetails(movieId);
+        // Listen for the ID passed from HomeFragment
+        getParentFragmentManager().setFragmentResultListener("requestKey", this, (requestKey, bundle) -> {
+            movieId = bundle.getString("movieId");
+            if (movieId != null) {
+                getMovieDetails(movieId);
+            }
+        });
 
         btnAddToDB.setOnClickListener(view -> addMovieToDatabase());
+
         return v;
     }
 
     private void getMovieDetails(String id) {
+        String url = AppConfig.getMovieDetailsUrl(id);
 
-        String apiKey = "3eb1ae63cae30f7f59288876da6c30c7";
-        String url = "https://api.themoviedb.org/3/movie/" + id +
-                "?api_key=" + apiKey + "&language=en-US";
-
-        JsonObjectRequest request = new JsonObjectRequest(
-                Request.Method.GET,
-                url,
-                null,
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
                 response -> {
                     try {
-                        // ====== Title ======
                         title = response.getString("title");
                         movietitle.setText(title);
 
-                        // ====== Description ======
                         description = response.getString("overview");
                         moviedescription.setText(description);
 
-                        // ====== Rating ======
                         String vote = response.getString("vote_average");
-                        movierating.setText("Rating : " + vote);
+                        movierating.setText(vote);
 
-                        // ====== Release date ======
                         year = response.getString("release_date");
                         moviedate.setText(year);
 
-                        // ====== Genre (first one) ======
                         JSONArray genres = response.getJSONArray("genres");
                         if (genres.length() > 0) {
                             genre = genres.getJSONObject(0).getString("name");
                         }
 
-                        // ====== Image ======
                         String posterPath = response.getString("poster_path");
-                        image_url = "https://image.tmdb.org/t/p/w500" + posterPath;
+                        image_url = AppConfig.TMDB_IMAGE_BASE_URL + posterPath;
+
                         Glide.with(this).load(image_url).into(poster);
 
                     } catch (Exception e) {
-                        Toast.makeText(getContext(), "Error parsing JSON", Toast.LENGTH_SHORT).show();
-                        Log.e("DETAIL_PARSE", e.toString());
+                        e.printStackTrace();
                     }
                 },
-                error -> {
-                    Toast.makeText(getContext(), "Connection error", Toast.LENGTH_SHORT).show();
-                    Log.d("DETAIL_ERROR", error.toString());
-                }
+                error -> Toast.makeText(getContext(), "Error loading details", Toast.LENGTH_SHORT).show()
         );
 
-        RequestQueue queue = Volley.newRequestQueue(getContext());
-        queue.add(request);
+        Volley.newRequestQueue(getContext()).add(request);
     }
+
     private void addMovieToDatabase() {
-
-        String url = "http://192.168.56.1/movie/add_movie.php"; //
-
-        RequestQueue queue = Volley.newRequestQueue(getContext());
+        String url = AppConfig.URL_ADD_MOVIE;
+        Toast.makeText(getContext(), "Adding to watchlist...", Toast.LENGTH_SHORT).show();
 
         StringRequest postRequest = new StringRequest(Request.Method.POST, url,
-                response -> {
-                    Toast.makeText(getContext(), "Film ajouté avec succès !", Toast.LENGTH_SHORT).show();
-                },
+                response -> Toast.makeText(getContext(), "Movie added to Watchlist!", Toast.LENGTH_LONG).show(),
                 error -> {
-                    Toast.makeText(getContext(), "Erreur de connexion", Toast.LENGTH_SHORT).show();
-                    Log.d("Erreur de connexion", error.toString());
+                    Toast.makeText(getContext(), "Connection Error: Check Server", Toast.LENGTH_SHORT).show();
+                    Log.e("DB_ERROR", error.toString());
                 }
         ) {
             @Override
             protected Map<String, String> getParams() {
                 Map<String, String> params = new HashMap<>();
-
                 params.put("title", title);
                 params.put("genre", genre);
                 params.put("year", year);
                 params.put("description", description);
                 params.put("image_url", image_url);
-
                 return params;
             }
         };
 
-        queue.add(postRequest);
+        Volley.newRequestQueue(getContext()).add(postRequest);
     }
 }
